@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cálculo Provisões Técnicas</title>
+    <style>
+        /* Estilo geral da página */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #c5c5c5ef; /* Cor de fundo */
+            margin: 0;
+            padding: 0;
+            color: #333; /* Cor do texto */
+        }
+
+        /* Título principal */
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 40px;
+        }
+
+        /* Contêiner para centralizar conteúdo */
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            margin-top: 40px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 40px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Estilo para os rótulos e texto */
+        label {
+            font-size: 1.2em;
+            margin-right: 10px;
+        }
+
+        /* Estilo do input de data */
+        input[type="date"] {
+            padding: 10px;
+            font-size: 1em;
+            margin: 10px 0 20px 0;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        /* Estilo dos botões */
+        button {
+            padding: 12px 25px;
+            font-size: 1em;
+            margin: 10px 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #696969;
+            color: white;
+        }
+
+        button:hover {
+            background-color: #797979;
+        }
+
+        /* Estilo para a palavra "Progresso" */
+        div > label {
+            margin-top: 20px; /* Distância entre o topo e a palavra "Progresso" */
+            display: block; /* Garantir que o label seja exibido como bloco */
+        }
+
+        /* Estilo para a barra de progresso */
+        #barra-progresso {
+            height: 100%;
+            background-color: #54df66;
+            color: white;
+            text-align: center;
+            line-height: 25px; /* Para centralizar o texto dentro da barra */
+            border-radius: 5px;
+        }
+
+        /* Container da barra de progresso */
+        .progress-container {
+            width: 100%;
+            background-color: #ddd;
+            height: 25px;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 2px solid black; /* Contorno preto */
+            margin-top: 20px;
+        }
+
+        /* Estilo para os itens de texto dentro da barra */
+        .progresso-texto {
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        /* Estilo do rodapé (opcional) */
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            font-size: 0.9em;
+            background-color: #ce8525;
+            color: white;
+            border-radius: 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cálculo Provisões Técnicas</h1>
+        <label for="closing-date"><strong>Data de Fechamento:</strong></label>
+        <input type="date" id="closing-date" name="closing-date">
+        <button onclick="enviarDataBase()">Definir Data Base</button>
+
+        <div>
+            <label for="data-base"><strong>Data Base Selecionada:</strong></label>
+            <span id="data-base-selecionada"></span>
+        </div>
+
+        <div>
+            <button onclick="calcularPPNG()">Calcular PPNG</button>
+            <button onclick="analisarPPNG()">Analisar PPNG</button>
+        </div>
+
+        <div>
+            <label for="progresso"><strong>Progresso:</strong></label>
+        </div>
+
+        <div class="progress-container">
+            <div id="barra-progresso">
+                0%
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 Cálculo de Provisões Técnicas</p>
+    </footer>
+
+    <script>
+    function enviarDataBase() {
+        const input = document.getElementById('closing-date');
+        const data = input.value;
+
+        if (data) {
+            // Converte de aaaa-mm-dd → dd/mm/aaaa
+            const [ano, mes, dia] = data.split('-');
+            const dataFormatada = `${dia}/${mes}/${ano}`;
+
+            fetch('http://127.0.0.1:5000/data_base_fechamento', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ data_base: dataFormatada })
+            })
+            .then(response => response.json())
+            .then(resultado => {
+                if (resultado.data_base) {
+                    document.getElementById('data-base-selecionada').textContent = resultado.data_base;
+                } else {
+                    alert('Erro ao salvar a data.');
+                }
+            })
+            .catch(() => alert('Erro na requisição.'));
+        } else {
+            alert('Por favor, selecione uma data.');
+        }    
+    }
+
+    function calcularPPNG() {
+        const barra = document.getElementById('barra-progresso');
+        barra.style.width = '0%';
+        barra.textContent = '0%';
+
+        let intervalo;
+
+        function verificarProgresso() {
+            fetch('http://127.0.0.1:5000/progresso_ppng')
+                .then(resp => resp.json())
+                .then(data => {
+                    const progresso = data.progresso || 0;
+                    barra.style.width = progresso + '%';
+                    barra.textContent = progresso + '%';
+
+                    if (progresso >= 100) {
+                        clearInterval(intervalo);
+                        alert('PPNG calculada com sucesso!');
+                    }
+                })
+                .catch(() => {
+                    clearInterval(intervalo);
+                    alert('Erro ao verificar o progresso.');
+                });
+        }
+
+        intervalo = setInterval(verificarProgresso, 500);
+
+        fetch('http://127.0.0.1:5000/calcular_ppng', {
+            method: 'POST'
+        })
+        .catch(() => {
+            clearInterval(intervalo);
+            alert('Erro ao iniciar o cálculo da PPNG.');
+        });
+    }
+
+    function analisarPPNG(){
+        window.location.href = 'http://127.0.0.1:5000/analisar_ppng';
+    }
+    </script>
+</body>
+</html>
